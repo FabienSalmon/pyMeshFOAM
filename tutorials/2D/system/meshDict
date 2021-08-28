@@ -1,0 +1,118 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                |
+| \\      /  F ield         | OpenFOAM GUI Project: creativeFields           |
+|  \\    /   O peration     | Version:  0.8.9.0                                  |
+|   \\  /    A nd           | Web: www.c-fields.com                                       |
+|    \\/     M anipulation  |                                                |
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+version 2;
+format  ascii;
+class   dictionary;
+location        "system";
+object  meshDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+maxCellSize     0.02;
+
+surfaceFile     "NACA.ftr";
+
+objectRefinements
+{
+        Airfoil
+        {
+                cellSize 0.005;
+                type box;
+                centre  (0.075 -0.01 0.05);
+                lengthX 0.6;
+                lengthY 0.17;
+                lengthZ 2;
+        }
+       /* Airfoil_fin
+        {
+                cellSize 0.0025;
+                type box;
+                centre  (0.075 -0.01 0.05);
+                lengthX 0.3;
+                lengthY 0.1;
+                lengthZ 2;
+        }*/
+        Intermediaire
+        {
+                cellSize 0.01;
+                type box;
+                centre  (0.075 -0.01 0.05);
+                lengthX 1;
+                lengthY 0.5;
+                lengthZ 2;
+        }
+
+}
+
+boundaryLayers
+{
+    patchBoundaryLayers
+    {
+        "Aile.*"
+        {
+            nLayers           17;
+
+            thicknessRatio    1.2;
+
+            maxFirstLayerThickness 0.00000922;
+
+            allowDiscontinuity 1;
+        }
+    }
+        optimiseLayer 1;
+}
+
+
+/*localRefinement
+{
+        "Aile.*"
+        {
+                additionalRefinementLevels 7;
+                refinementThickness 0.01;
+        }
+}
+*/
+renameBoundary
+{
+    defaultName         FrontAndBack;
+    defaultType         empty;
+
+    newPatchNames
+    {
+        "Wall.*"
+        {
+            newName     Wall;
+            newType     wall;
+        }
+
+        "Inlet.*"
+        {
+            newName     Inlet;
+            newType     patch;
+        }
+
+        "Outlet.*"
+        {
+            newName     Outlet;
+            newType     patch;
+        }
+
+        "Aile.*"
+        {
+            newName     Aile;
+            newType     Wall;
+        }
+    }
+}
+
+// ************************************************************************* //
+                                           

@@ -1,0 +1,182 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                |
+| \\      /  F ield         | OpenFOAM GUI Project: creativeFields           |
+|  \\    /   O peration     | Version:  0.8.9.0                                  |
+|   \\  /    A nd           | Web: www.c-fields.com                                       |
+|    \\/     M anipulation  |                                                |
+\*---------------------------------------------------------------------------*/
+
+FoamFile
+{
+version 2;
+format  ascii;
+class   dictionary;
+location        "system";
+object  meshDict;
+}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+maxCellSize	0.015;
+
+surfaceFile     "Wing.ftr";
+
+objectRefinements
+{
+        Airfoil
+        {
+		cellSize	0.005;
+                type box;
+		centre  (.040 0 .070);
+		lengthX .99;
+		lengthY .280;
+		lengthZ .310;
+        }
+	/*Saumon
+	{
+		type cone;
+		cellSize	0.0005;
+		p0	(0 .00517 0.14);
+		p1	(0.08 -.01506 0.14);
+		radius0	.00720;
+		radius1	.00720;
+	}
+        Attaque
+        {
+                type cone;
+		cellSize	0.001;
+		p0	(0 .00517 .161);
+		p1	(0 .00517 0);
+		radius0	.01440;
+		radius1	.01440;
+        }
+        Fuite
+        {
+                type cone;
+		cellSize	0.0004;
+		p0	(.07621 -.01506 .161);
+		p1	(.07621 -.01506 0);
+		radius0	.00170;
+		radius1	.00170;
+        }*/
+	Refine
+        {
+		cellSize	0.002;
+                type box;
+		centre  (.04 -.0 .070);
+		lengthX .44;
+		lengthY .16;
+		lengthZ .23;
+        }
+        /*Sillage
+        {
+		cellSize	0.002;
+                type box;
+		centre  (.100 -.00258 .070);
+		lengthX .280;
+		lengthY .06211;
+		lengthZ .182;
+        }*/
+        Refine_plus
+        {
+                cellSize        0.001;
+		type box;
+                centre    (0.04 0. 0.07);
+                lengthX  0.18;
+                lengthY .12;
+                lengthZ .21;
+        }
+}
+
+
+/*boundaryLayers
+{
+    patchBoundaryLayers
+    {
+        "Aile.*"
+        {
+		nLayers	0;
+
+		thicknessRatio	1.2;
+
+		maxFirstLayerThickness	.00196;
+
+            allowDiscontinuity 1;
+        }
+    }
+        optimiseLayer 1;
+
+    optimisationParameters
+    {
+        nSmoothNormals 			5;		// (optional) number of iterations in the procedure for reducing normal variation
+        relThicknessTol 		0.1; 		// (optional) maximum allowed thickness variation of thickness between two neigbouring points, divided by the distance between the points
+        featureSizeFactor 		0.4;		// (optional) ratio between the maximum layer thickness and the estimated feature size
+        reCalculateNormals 		1; 		// (optional) activate 1 or deactivate 0 calculation of normal
+        maxNumIterations 		10;		// (optional) maximum number of iterations of the whole procedure
+    }
+}*/
+
+localRefinement
+{
+        /*"Aile.*"
+        {
+                additionalRefinementLevels 5;
+                refinementThickness 0.017;
+        }*/
+        /*"Aile.*"
+        {
+                additionalRefinementLevels 6;
+                refinementThickness 0.01;
+        }*/
+}
+renameBoundary
+{
+    defaultName         Aile;
+    defaultType         wall;
+
+    newPatchNames
+    {
+        "Inlet.*"
+        {
+            newName     Inlet;
+            newType     patch;
+        }
+		
+		"Outlet.*"
+        {
+            newName     Outlet;
+            newType     patch;
+        }
+		
+		"Front.*"
+        {
+            newName     Front;
+            newType     patch;
+        }
+		
+		"Back.*"
+        {
+            newName     Back;
+            newType     patch;
+        }
+		
+		"Bottom.*"
+        {
+            newName     Bottom;
+            newType     patch;
+        }
+		
+		"Top.*"
+        {
+            newName     Top;
+            newType     patch;
+        }
+		"Aile.*"
+        {
+            newName     Aile;
+            newType     patch;
+        }
+    }
+}
+
+// ************************************************************************* //

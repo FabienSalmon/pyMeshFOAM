@@ -1,0 +1,42 @@
+*INCLUDE, INPUT=Solid/All.msh
+*INCLUDE, INPUT=Solid/fix.nam
+*INCLUDE, INPUT=Solid/surface.nam
+
+*MATERIAL,NAME=Acier
+*ELASTIC
+1.E+11,0.
+
+** optional for modal, gravity, etc
+*DENSITY
+7850
+
+*SOLID SECTION,MATERIAL=Acier,ELSET=Volume1
+
+**------------------------------
+** additional support for sides
+**------------------------------
+
+*STEP , INC=1000000
+**, NLGEOM, INC=10000000
+*DYNAMIC,DIRECT
+1.E-5, 10.0
+
+** fix on the lower boundary from x to z.  
+*BOUNDARY
+Nfix, 1
+Nfix, 2
+Nfix, 3
+
+*CLOAD
+Nsurface, 1, 0.0
+Nsurface, 2, 0.0
+Nsurface, 3, 0.0
+
+*DLOAD
+Volume1,GRAV,9.810,0.0,-1.0,0.0
+
+*NODE FILE,FREQUENCY=100
+U,V
+*EL FILE,FREQUENCY=100
+S
+*END STEP

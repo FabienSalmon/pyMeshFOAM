@@ -1,0 +1,92 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | foam-extend: Open Source CFD                    |
+|  \\    /   O peration     | Version:     4.0                                |
+|   \\  /    A nd           | Web:         http://www.foam-extend.org         |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       volVectorField;
+    location    "0";
+    object      U;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+dimensions      [0 1 -1 0 0 0 0];
+
+internalField   uniform (1 0 0);
+
+boundaryField
+{
+    Wall
+    {
+        type            fixedValue;
+        value           uniform (0 0 0);
+    }
+    Inlet
+    {
+        type            codedFixedValue;
+	value		uniform (0 0 0);
+        name    	Poiseuille;   // name of generated BC
+
+        code
+        #{
+		bool twoD=true;
+		scalar Lz=0.23;
+		scalar R=0.5;
+		scalar Ly=2*5*0.08;
+		scalar V_max=1;
+
+		const scalar t = db().time().timeOutputValue();
+	        const fvPatch& p = this->patch();
+	        const fvMesh& mesh = p.boundaryMesh().mesh();
+	        const label& startFace = patch().patch().start();
+	        const label  endFace = startFace + p.size() - 1 ;
+		vectorField Velocity(p.size(),vector::zero);	        
+		
+		scalar coef=1;//0;
+		//if (t>0.5) {coef=1;}
+		//else {coef=2*t;}
+		if (twoD==false)
+		{
+		        for(int facei=startFace;facei<=endFace;facei++)
+		        {
+				scalar r2=pow(mesh.Cf()[facei][1],2)+pow(mesh.Cf()[facei][1]-Lz/2.0,2);
+				Velocity[facei-startFace].component(vector::X)=coef*max(V_max*(1-r2/pow(R,2)),0);
+			}
+		}
+		else
+		{
+		        for(int facei=startFace;facei<=endFace;facei++)
+		        {
+				Velocity[facei-startFace].component(vector::X)=coef*max(V_max*(1-pow(mesh.Cf()[facei][1]/(0.9*Ly/2.0),2)),0);
+			}
+		}	
+		operator==
+		(
+			Velocity
+		);
+	#};
+    }
+    Outlet
+    {
+        type            inletOutlet;
+        value           uniform (0 0 0);
+        inletValue      uniform (0 0 0);
+    }
+    Aile
+    {
+        type            fixedValue;
+        value           uniform (0 0 0);
+    }
+    FrontAndBack
+    {
+        type            empty;
+    }
+}
+
+
+// ************************************************************************* //
