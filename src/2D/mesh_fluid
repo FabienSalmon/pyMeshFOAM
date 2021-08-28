@@ -1,0 +1,147 @@
+#!/bin/bash
+
+# \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\ Settings /////////////////////////////////////////
+# Path to OpenFOAM | cfMesh is necessary if Full=True
+source '/opt/openfoam7/etc/bashrc'
+
+# The 2D contour file
+File='NACA.dat'
+# not necessary if the profile is NACA00xx
+xx=15 # put 0 if you want the profile to correspond to the one provided in 'File'
+
+# If the full profile is provided (true), the mesh process is performed with cfMesh | If only half of the contour is provided due to symmetry (false), blockMesh is used (better quality)
+Full=false #false # In 3D, only the "true" option is available
+
+# Path to GMSH
+chemin='/usr/bin/gmsh'
+
+# Name given to the fluid-structure interface
+Name_Surf='Aile'
+
+# Information about whether the calculation will be performed in 2D (true) or 3D (false)
+twoD=true
+
+# Wing span (in meter) | In 2D, this value corresponds to the length of the extruded section but there is only one cell in this direction
+Envergure=0.14
+
+# The chord of the NACA profiles available online is often 1. The parameter Ratio resizes the profile (homothety, center (0,0,0)) 
+Ratio=0.08
+
+# Position of the rotation center: X_c=X_r*chord ; Y_c=0 (from the trailing edge) - the rotation axis is assumed to be z
+X_r=0.25 
+
+# Angle of incidence
+Rotation=15
+
+# The fluid material (only two choices: 'Water' and 'Air')
+Material='Water'
+
+# Velocity of the fluid (required for the calculation of the Reynolds number)
+Velocity=1 #m/s
+
+# Boundary layer mesh
+BL=false
+
+# Property of the boundary layer
+y_plus=30
+Exponential_ratio=1.2
+
+# Dimensions of the box around the structure
+# if Full=True:
+Length=0.6
+Width=0.23
+Height=0.23
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~    The following variables are only used when the mesh is performed with blockMesh (Full=false)   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+# else: # The dimensions are proportional to the chord: Length=mult_chordx * chord | Width=mult_chordy * chord \ Height=mult_span * span
+mult_chordx=5
+mult_chordy=5
+mult_span=1.75
+
+# Thickness of the layer around the profile where the size of the cells remains constant (proportional to the chord: thickness=mult_chordH * chord
+mult_chordH=2
+
+# Size of the cell in this layer
+size_mesh=0.003
+
+# Number of cells according to z along the span | =1 in 2D
+Nb_cells=1
+
+# Type of mesh
+type=1
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+
+
+# \\\\\\\\\\\\\\\\\\\\\\\\ Code /////////////////////////////
+start=`date +%s`
+if test "$Full" = false;
+then
+        if (($type==1))
+        then
+                python Mesh_pointe_2.0.py $twoD $Envergure $Ratio $X_r $Rotation $File $Material $Velocity $mult_chordx $mult_chordy $mult_span $mult_chordH $y_plus $Exponential_ratio $size_mesh $Nb_cells $xx
+                blockMesh
+                cd constant/polyMesh
+                if test "$twoD" = true;
+                then
+                        sed -i "46s/.*/    FrontAndBack/" boundary
+                else
+                        sed -i "46s/.*/    Wall2/" boundary
+                        sed -i "48s/.*/\t\ttype\t\twall;/" boundary
+                fi
+                cd ../..
+        else
+                python Mesh_block.py $twoD $Envergure $Ratio $X_r $Rotation $File $Material $Velocity $mult_chordx $mult_chordy $mult_span $mult_chordH $y_plus $Exponential_ratio $size_mesh $Nb_cells $xx
+                blockMesh
+                N_corr=9 # Odd number - can be adjusted by the user
+                python Mesh_correction.py $Name_Surf $mult_chordH $Rotation $Ratio $Material $Velocity $y_plus $Exponential_ratio $size_mesh $N_corr
+        fi
+else
+        if test "$twoD" = true;
+        then
+                python 2D2ftr.py $File $Ratio $Envergure $Length $Width $X_r $Rotation $xx
+                cartesian2DMesh
+                rm NACA.ftr
+        else
+                echo "Writing the CAO file (.stl) of the solid structure from the profile file (.dat)"
+                python dat2gmsh.py $chemin $twoD $Envergure $Ratio $File $X_r $Rotation $xx # --> Writing the file NACA.stl | Coarse mesh of the foil
+		sed -i "1s/.*/solid Aile/" NACA.stl
+                sed -i "$/s/.*/endsolid Aile/" NACA.stl
+
+                echo "Creating the fluid CAO file"
+		python CreateBox.py $Length $Width $Height $Ratio
+
+                # Meshing of the fluid with cfMesh
+                echo "Meshing with cfMesh"
+                surfaceFeatureEdges -angle 30 NACA.stl Aile.ftr
+                surfaceFeatureEdges -angle 30 FarAway.stl FarAway.ftr
+		surfaceAdd Aile.ftr FarAway.ftr Wing.ftr
+
+                cartesianMesh
+
+		if test "$BL" = true;
+                then
+                        ydist=$(bc -l <<< "scale=5; 0.000002*$y_plus/e(0.5*l(0.5*0.026*e((-1.0/7.0)*l(1000000*$Velocity*$Ratio))*$Velocity^2))")
+                        Max=$(bc -l <<< "scale=5; (l($size_mesh)-l($ydist))/l($Exponential_ratio)")
+                        cd constant
+                        mkdir triSurface
+                        cd ..
+                        cp NACA.stl constant/triSurface
+                        cd system # The mesh of the boundary layer can worsen the quality of the mesh --> the snappyHexMeshDict file can be modified by hand
+                        sed -i "216s/.*/\t\tnSurfaceLayers ${Max%.*};/" snappyHexMeshDict
+                        sed -i "221s/.*/\t\texpansionRatio $Exponential_ratio;/" snappyHexMeshDict
+                        sed -i "232s/.*/\t\tfirstLayerThickness $ydist;/" snappyHexMeshDict
+                        cd ..
+                        snappyHexMesh -overwrite
+                fi
+
+		rm FarAway.stl NACA.stl Aile.ftr FarAway.ftr Wing.ftr NACA.geo
+        fi
+fi
+
+end=`date +%s`
+echo "Execution time: "$((end-start)) "s"
+
