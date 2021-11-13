@@ -6,8 +6,12 @@ source '/opt/openfoam7/etc/bashrc'
 
 # The 2D contour file
 File='NACA.dat'
+
 # not necessary if the profile is NACA00xx
 xx=15 # put 0 if you want the profile to correspond to the one provided in 'File'
+
+# If the mesh is based on a 3D obj file (extrusion step is not achieved if = true)
+based_on_obj=false
 
 # If the full profile is provided (true), the mesh process is performed with cfMesh | If only half of the contour is provided due to symmetry (false), blockMesh is used (better quality)
 Full=true # In 3D, only the "true" option is available
@@ -99,15 +103,21 @@ then
         fi
 else
         if test "$twoD" = true;
-        then
-                python 2D2ftr.py $File $Ratio $Envergure $Length $Width $X_r $Rotation
+        then                
+		if test "$based_on_obj" = false;
+                then
+	                python 2D2ftr.py $File $Ratio $Envergure $Length $Width $X_r $Rotation
+		fi
                 cartesian2DMesh
                 rm NACA.ftr
         else
-                echo "Writing the CAO file (.stl) of the solid structure from the profile file (.dat)"
-                python dat2gmsh.py $chemin $twoD $Envergure $Ratio $File $X_r $Rotation $xx # --> Writing the file NACA.stl | Coarse mesh of the foil
-		sed -i "1s/.*/solid Aile/" NACA.stl
-                sed -i "$/s/.*/endsolid Aile/" NACA.stl
+		if test "$based_on_obj" = false;
+                then
+                	echo "Writing the CAO file (.stl) of the solid structure from the profile file (.dat)"
+                	python dat2gmsh.py $chemin $twoD $Envergure $Ratio $File $X_r $Rotation $xx # --> Writing the file NACA.stl | Coarse mesh of the foil
+			sed -i "1s/.*/solid Aile/" NACA.stl
+                	sed -i "$/s/.*/endsolid Aile/" NACA.stl
+		fi
 
                 echo "Creating the fluid CAO file"
 		python CreateBox.py $Length $Width $Height $Ratio
